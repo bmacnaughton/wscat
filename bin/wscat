@@ -66,7 +66,7 @@ class Console extends EventEmitter {
     this.readlineInterface.prompt(true);
   }
 
-  print(type, msg, color) {
+  print(type, msg, color, prompt = true) {
     if (tty.isatty(1)) {
       this.clear();
 
@@ -74,7 +74,7 @@ class Console extends EventEmitter {
       else if (!program.color) color = '';
 
       this.stdout.write(color + type + msg + Console.Colors.Default + '\n');
-      this.prompt();
+      prompt && this.prompt();
     } else if (type === Console.Types.Incoming) {
       this.stdout.write(msg + '\n');
     } else {
@@ -319,11 +319,13 @@ if (program.listen) {
                 const o = eval(`(${data})`);
                 const json = JSON.stringify(o);
                 data = json;
+                ws.send(data);
               } catch (e) {
                 wsConsole.print(Console.Types.Error, 'Invalid input object', Console.Colors.Yellow);
               }
+            } else {
+              ws.send(data);
             }
-            ws.send(data);
           }
           wsConsole.prompt();
         });
@@ -383,6 +385,7 @@ if (program.listen) {
     });
 
     wsConsole.on('close', () => {
+      wsConsole.print(Console.Types.Control, '[exit]', Console.Colors.Green, false);
       ws.close();
       process.exit();
     });
