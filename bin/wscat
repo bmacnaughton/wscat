@@ -8,12 +8,14 @@
 
 const EventEmitter = require('events');
 const fs = require('fs');
+const util = require('util');
 const HttpsProxyAgent = require('https-proxy-agent');
 const program = require('commander');
 const read = require('read');
 const readline = require('readline');
 const tty = require('tty');
 const WebSocket = require('ws');
+
 
 /**
  * InputReader - processes console input.
@@ -116,6 +118,7 @@ program
   .option('-o, --origin <origin>', 'optional origin')
   .option('-x, --execute <command>', 'execute command after connecting')
   .option('-w, --wait <seconds>', 'wait given seconds after executing command')
+  .option('-j, --json', 'convert literal objects to object on input and output')
   .option(
     '-P, --show-ping-pong',
     'print a notification when a ping or pong is received'
@@ -311,6 +314,15 @@ if (program.listen) {
                 );
             }
           } else {
+            if (program.json) {
+              try {
+                const o = eval(`(${data})`);
+                const json = JSON.stringify(o);
+                data = json;
+              } catch (e) {
+                wsConsole.print(Console.Types.Error, 'Invalid input object', Console.Colors.Yellow);
+              }
+            }
             ws.send(data);
           }
           wsConsole.prompt();
@@ -336,7 +348,18 @@ if (program.listen) {
     });
 
     ws.on('message', (data) => {
-      wsConsole.print(Console.Types.Incoming, data, Console.Colors.Blue);
+      if (program.json && data[0] === '{') {
+        try {
+          const o = JSON.parse(data);
+          data = util.inspect(o, {depth: 4, colors: process.stdout.isTTY});
+          console.log(data);
+          wsConsole.print(Console.Types.Control, '[done]', Console.Colors.Green);
+        } catch (e) {
+          wsConsole.print(Console.Types.Error, 'Invalid object received', Console.Colors.Yellow);
+        }
+      } else {
+        wsConsole.print(Console.Types.Incoming, data, Console.Colors.Blue);
+      }
     });
 
     ws.on('ping', () => {
