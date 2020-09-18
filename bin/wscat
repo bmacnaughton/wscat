@@ -8,12 +8,14 @@
 
 const EventEmitter = require('events');
 const fs = require('fs');
+const util = require('util');
 const HttpsProxyAgent = require('https-proxy-agent');
 const program = require('commander');
 const read = require('read');
 const readline = require('readline');
 const tty = require('tty');
 const WebSocket = require('ws');
+
 
 /**
  * InputReader - processes console input.
@@ -64,7 +66,7 @@ class Console extends EventEmitter {
     this.readlineInterface.prompt(true);
   }
 
-  print(type, msg, color) {
+  print(type, msg, color, prompt = true) {
     if (tty.isatty(1)) {
       this.clear();
 
@@ -72,7 +74,7 @@ class Console extends EventEmitter {
       else if (!program.color) color = '';
 
       this.stdout.write(color + type + msg + Console.Colors.Default + '\n');
-      this.prompt();
+      prompt && this.prompt();
     } else if (type === Console.Types.Incoming) {
       this.stdout.write(msg + '\n');
     } else {
@@ -116,6 +118,7 @@ program
   .option('-o, --origin <origin>', 'optional origin')
   .option('-x, --execute <command>', 'execute command after connecting')
   .option('-w, --wait <seconds>', 'wait given seconds after executing command')
+  .option('-j, --json', 'in: convert literal objects to JSON, out: convert JSON to literal objects')
   .option(
     '-P, --show-ping-pong',
     'print a notification when a ping or pong is received'
@@ -311,7 +314,18 @@ if (program.listen) {
                 );
             }
           } else {
-            ws.send(data);
+            if (program.json) {
+              try {
+                const o = eval(`(${data})`);
+                const json = JSON.stringify(o);
+                data = json;
+                ws.send(data);
+              } catch (e) {
+                wsConsole.print(Console.Types.Error, 'Invalid input object', Console.Colors.Yellow);
+              }
+            } else {
+              ws.send(data);
+            }
           }
           wsConsole.prompt();
         });
@@ -336,7 +350,18 @@ if (program.listen) {
     });
 
     ws.on('message', (data) => {
-      wsConsole.print(Console.Types.Incoming, data, Console.Colors.Blue);
+      if (program.json && data[0] === '{') {
+        try {
+          const o = JSON.parse(data);
+          data = util.inspect(o, {depth: 4, colors: process.stdout.isTTY});
+          console.log(data);
+          wsConsole.print(Console.Types.Control, '[done]', Console.Colors.Green);
+        } catch (e) {
+          wsConsole.print(Console.Types.Error, 'Invalid object received', Console.Colors.Yellow);
+        }
+      } else {
+        wsConsole.print(Console.Types.Incoming, data, Console.Colors.Blue);
+      }
     });
 
     ws.on('ping', () => {
@@ -360,6 +385,7 @@ if (program.listen) {
     });
 
     wsConsole.on('close', () => {
+      wsConsole.print(Console.Types.Control, '[exit]', Console.Colors.Green, false);
       ws.close();
       process.exit();
     });
