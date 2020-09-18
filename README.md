@@ -23,6 +23,7 @@ Options:
   -o, --origin <origin>               optional origin
   -x, --execute <command>             execute command after connecting
   -w, --wait <seconds>                wait given seconds after executing command
+  -j, --json                          presume JSON input and output in literal object notation
   -P, --show-ping-pong                print a notification when a ping or pong is received
   --host <host>                       optional host
   -s, --subprotocol <protocol>        optional subprotocol (default: [])

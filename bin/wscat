@@ -118,7 +118,7 @@ program
   .option('-o, --origin <origin>', 'optional origin')
   .option('-x, --execute <command>', 'execute command after connecting')
   .option('-w, --wait <seconds>', 'wait given seconds after executing command')
-  .option('-j, --json', 'convert literal objects to object on input and output')
+  .option('-j, --json', 'in: convert literal objects to JSON, out: convert JSON to literal objects')
   .option(
     '-P, --show-ping-pong',
     'print a notification when a ping or pong is received'
